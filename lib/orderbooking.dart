@@ -3749,6 +3749,121 @@ Terms & Conditions
                                                       .toString(),
                                                 ),
                                               ),
+                                            if ((inv?['text'] ?? '')
+                                                .toString()
+                                                .trim()
+                                                .isNotEmpty)
+                                              ElevatedButton.icon(
+                                                icon: const Icon(
+                                                  Icons.delete_outline_rounded,
+                                                  size: 16,
+                                                ),
+                                                label: const Text(
+                                                  'Delete',
+                                                  style: TextStyle(fontSize: 12),
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      Colors.red.withOpacity(0.7),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                  minimumSize: Size.zero,
+                                                ),
+                                                onPressed: () async {
+                                                  final confirm =
+                                                      await showDialog<bool>(
+                                                    context: context,
+                                                    barrierColor: Colors.black
+                                                        .withOpacity(0.55),
+                                                    builder: (ctx) =>
+                                                        _GlassDialog(
+                                                          title: Row(
+                                                            children: const [
+                                                              Icon(
+                                                                Icons
+                                                                    .delete_forever_rounded,
+                                                                size: 18,
+                                                              ),
+                                                              SizedBox(width: 8),
+                                                              Flexible(
+                                                                child: Text(
+                                                                  'Delete Invoice?',
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          content: Text(
+                                                            'This will permanently remove the invoice for ${(inv?['number'] ?? '').toString()}.',
+                                                            style: TextStyle(
+                                                              color: Colors
+                                                                  .white
+                                                                  .withOpacity(
+                                                                0.9,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          actions: [
+                                                            _GhostButton(
+                                                              text: 'Cancel',
+                                                              onTap: () =>
+                                                                  Navigator.pop(
+                                                                    ctx,
+                                                                    false,
+                                                                  ),
+                                                            ),
+                                                            _DangerButton(
+                                                              text: 'Delete',
+                                                              onTap: () =>
+                                                                  Navigator.pop(
+                                                                    ctx,
+                                                                    true,
+                                                                  ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                  );
+
+                                                  if (confirm == true) {
+                                                    try {
+                                                      await _ordersCol
+                                                          .doc(m['id']
+                                                              as String)
+                                                          .update({
+                                                            'invoice':
+                                                                FieldValue
+                                                                    .delete(),
+                                                          });
+
+                                                      if (context.mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text(
+                                                              'Invoice deleted.',
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }
+                                                    } catch (e) {
+                                                      if (context.mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              'Delete failed: $e',
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                              ),
                                             if ((ch?['text'] ?? '')
                                                 .toString()
                                                 .trim()
@@ -3767,6 +3882,121 @@ Terms & Conditions
                                                   text: (ch?['text'] ?? '')
                                                       .toString(),
                                                 ),
+                                              ),
+                                            if ((ch?['text'] ?? '')
+                                                .toString()
+                                                .trim()
+                                                .isNotEmpty)
+                                              ElevatedButton.icon(
+                                                icon: const Icon(
+                                                  Icons.delete_outline_rounded,
+                                                  size: 16,
+                                                ),
+                                                label: const Text(
+                                                  'Delete',
+                                                  style: TextStyle(fontSize: 12),
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      Colors.red.withOpacity(0.7),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                  minimumSize: Size.zero,
+                                                ),
+                                                onPressed: () async {
+                                                  final confirm =
+                                                      await showDialog<bool>(
+                                                    context: context,
+                                                    barrierColor: Colors.black
+                                                        .withOpacity(0.55),
+                                                    builder: (ctx) =>
+                                                        _GlassDialog(
+                                                          title: Row(
+                                                            children: const [
+                                                              Icon(
+                                                                Icons
+                                                                    .delete_forever_rounded,
+                                                                size: 18,
+                                                              ),
+                                                              SizedBox(width: 8),
+                                                              Flexible(
+                                                                child: Text(
+                                                                  'Delete Chalan?',
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          content: Text(
+                                                            'This will permanently remove the delivery chalan for ${(ch?['number'] ?? '').toString()}.',
+                                                            style: TextStyle(
+                                                              color: Colors
+                                                                  .white
+                                                                  .withOpacity(
+                                                                0.9,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          actions: [
+                                                            _GhostButton(
+                                                              text: 'Cancel',
+                                                              onTap: () =>
+                                                                  Navigator.pop(
+                                                                    ctx,
+                                                                    false,
+                                                                  ),
+                                                            ),
+                                                            _DangerButton(
+                                                              text: 'Delete',
+                                                              onTap: () =>
+                                                                  Navigator.pop(
+                                                                    ctx,
+                                                                    true,
+                                                                  ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                  );
+
+                                                  if (confirm == true) {
+                                                    try {
+                                                      await _ordersCol
+                                                          .doc(m['id']
+                                                              as String)
+                                                          .update({
+                                                            'chalan':
+                                                                FieldValue
+                                                                    .delete(),
+                                                          });
+
+                                                      if (context.mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text(
+                                                              'Delivery Chalan deleted.',
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }
+                                                    } catch (e) {
+                                                      if (context.mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              'Delete failed: $e',
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }
+                                                    }
+                                                  }
+                                                },
                                               ),
                                           ],
                                         ),
