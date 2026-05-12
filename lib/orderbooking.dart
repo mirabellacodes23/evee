@@ -1487,19 +1487,26 @@ Terms & Conditions
   Future<void> _openBookingDialog(BuildContext context, Bike bike) async {
     final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController();
-    final fatherCtrl = TextEditingController(); // NEW
-    final cnicCtrl = TextEditingController(); // NEW
+    final fatherCtrl = TextEditingController();
+    final cnicCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final addressCtrl = TextEditingController();
     int qty = 1;
-    
+
     int? instDuration;
-    int? instDownPct;
-    bool includeRegFee = false;
-    
+    // Manual down payment amount entered by the user (replaces fixed-pct dropdown)
+    final downPaymentAmountCtrl = TextEditingController();
+    // ── CHANGE 1: new state variable for optional registration charges ──
+    bool includeRegistration = false;
+
     final priceStr = bike.price.replaceAll(RegExp(r'[^0-9]'), '');
     final singlePrice = int.tryParse(priceStr) ?? 0;
+
+    // Whether this bike model is always zero-registration
+    final isZeroRegBike =
+        bike.name.toLowerCase().contains('flipper') ||
+        bike.name.toLowerCase().contains('mito plus');
 
     Widget summaryRow(String label, String val, {bool isBold = false}) {
       return Padding(
@@ -1507,8 +1514,22 @@ Terms & Conditions
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-            Text(val, style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: isBold ? FontWeight.bold : FontWeight.w600)),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            Text(
+              val,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+              ),
+            ),
           ],
         ),
       );
@@ -1517,7 +1538,6 @@ Terms & Conditions
     String? validateCnic(String? v) {
       final s = (v ?? '').replaceAll(RegExp(r'[^0-9]'), '');
       if (s.isEmpty) return 'Required';
-      // accept 13 digits (basic)
       if (s.length != 13) return 'Enter 13-digit CNIC';
       return null;
     }
@@ -1609,7 +1629,7 @@ Terms & Conditions
                         onPlus: () => setD(() => qty++),
                       ),
                       const SizedBox(height: 16),
-                      // Installment Payment Plan
+                      // ── Payment Plan ─────────────────────────────────────
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -1624,9 +1644,13 @@ Terms & Conditions
                           children: [
                             const Text(
                               'Payment Plan',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
                             ),
                             const SizedBox(height: 12),
+                            // Duration + Down Payment dropdowns (unchanged)
                             Row(
                               children: [
                                 Expanded(
@@ -1635,71 +1659,135 @@ Terms & Conditions
                                       labelText: 'Duration',
                                       filled: true,
                                       fillColor: Colors.black26,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                     ),
                                     value: instDuration,
                                     items: const [
-                                      DropdownMenuItem(value: null, child: Text('Cash (Full)')),
-                                      DropdownMenuItem(value: 4, child: Text('4 Months')),
-                                      DropdownMenuItem(value: 8, child: Text('8 Months')),
-                                      DropdownMenuItem(value: 12, child: Text('12 Months')),
+                                      DropdownMenuItem(
+                                        value: null,
+                                        child: Text('Cash (Full)'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 4,
+                                        child: Text('4 Months'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 8,
+                                        child: Text('8 Months'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 12,
+                                        child: Text('12 Months'),
+                                      ),
                                     ],
                                     onChanged: (v) => setD(() {
                                       instDuration = v;
-                                      if (v == null) instDownPct = null;
-                                      if (v != null && instDownPct == null) instDownPct = 30;
+                                      if (v == null) {
+                                        downPaymentAmountCtrl.clear();
+                                        includeRegistration = false;
+                                      }
                                     }),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: DropdownButtonFormField<int?>(
+                                  child: TextFormField(
+                                    controller: downPaymentAmountCtrl,
+                                    enabled: instDuration != null,
+                                    keyboardType: TextInputType.number,
+                                    onChanged: (_) => setD(() {}),
                                     decoration: InputDecoration(
-                                      labelText: 'Down Payment',
+                                      labelText: 'Down Payment Amount',
+                                      hintText: 'e.g. 80000',
                                       filled: true,
                                       fillColor: Colors.black26,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                     ),
-                                    value: instDownPct,
-                                    items: instDuration == null
-                                        ? []
-                                        : const [
-                                            DropdownMenuItem(value: 30, child: Text('30%')),
-                                            DropdownMenuItem(value: 40, child: Text('40%')),
-                                            DropdownMenuItem(value: 50, child: Text('50%')),
-                                            DropdownMenuItem(value: 60, child: Text('60%')),
-                                            DropdownMenuItem(value: 70, child: Text('70%')),
-                                          ],
-                                    onChanged: instDuration == null ? null : (v) => setD(() => instDownPct = v),
+                                    validator: (v) {
+                                      if (instDuration == null) return null;
+                                      final raw = (v ?? '').replaceAll(
+                                        RegExp(r'[^0-9]'),
+                                        '',
+                                      );
+                                      if (raw.isEmpty) return 'Required';
+                                      final amt = int.tryParse(raw) ?? 0;
+                                      if (amt <= 0) return 'Must be > 0';
+                                      final tPrice = singlePrice * qty;
+                                      if (amt > tPrice)
+                                        return 'Cannot exceed vehicle price';
+                                      return null;
+                                    },
                                   ),
                                 ),
                               ],
                             ),
-                            // Registration Fee toggle (shown once a duration is picked)
-                            if (instDuration != null) ...[
+                            // ── CHANGE 2: Optional Registration Charges checkbox ──
+                            // Only show when an installment plan is selected AND
+                            // the bike is not a zero-reg model.
+                            if (instDuration != null && !isZeroRegBike) ...[
                               const SizedBox(height: 10),
                               InkWell(
-                                onTap: () => setD(() => includeRegFee = !includeRegFee),
                                 borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                                onTap: () => setD(
+                                  () => includeRegistration =
+                                      !includeRegistration,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: includeRegistration
+                                        ? Colors.blue.withOpacity(0.12)
+                                        : Colors.white.withOpacity(0.04),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: includeRegistration
+                                          ? Colors.blue.withOpacity(0.45)
+                                          : Colors.white.withOpacity(0.12),
+                                    ),
+                                  ),
                                   child: Row(
                                     children: [
-                                      SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: Checkbox(
-                                          value: includeRegFee,
-                                          onChanged: (v) => setD(() => includeRegFee = v ?? false),
-                                          activeColor: const Color(0xFF00FF88),
-                                          side: const BorderSide(color: Colors.white54),
+                                      Checkbox(
+                                        value: includeRegistration,
+                                        onChanged: (v) => setD(
+                                          () =>
+                                              includeRegistration = v ?? false,
                                         ),
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                        activeColor: Colors.blue,
                                       ),
-                                      const SizedBox(width: 10),
-                                      const Expanded(
-                                        child: Text(
-                                          'Include Registration Charges (PKR 6,000)',
-                                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Add Registration Charges',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            Text(
+                                              'PKR ${6000 * qty} (PKR 6,000 per bike)',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.white.withOpacity(
+                                                  0.6,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -1707,65 +1795,121 @@ Terms & Conditions
                                 ),
                               ),
                             ],
-                            if (instDuration != null && instDownPct != null) ...[
+                            // ── CHANGE 3: Updated summary calculation ──
+                            if (instDuration != null &&
+                                downPaymentAmountCtrl.text
+                                    .trim()
+                                    .isNotEmpty) ...[
                               const SizedBox(height: 12),
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: Colors.blue.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                                  border: Border.all(
+                                    color: Colors.blue.withOpacity(0.3),
+                                  ),
                                 ),
                                 child: Builder(
                                   builder: (context) {
                                     final tPrice = singlePrice * qty;
-                                    final baseDown = tPrice * instDownPct! ~/ 100;
-                                    final dur = instDuration!;
-                                    final isZeroReg = bike.name.toLowerCase().contains('flipper') || bike.name.toLowerCase().contains('mito plus');
-                                    // Registration fee: only if model supports it AND user opted in
-                                    final regFee = (includeRegFee && !isZeroReg) ? (6000 * qty) : 0;
-                                    // Processing fee: merged into monthly installments
+                                    final rawAmt = downPaymentAmountCtrl.text
+                                        .replaceAll(RegExp(r'[^0-9]'), '');
+                                    final baseDown = int.tryParse(rawAmt) ?? 0;
+                                    // Calculated percentage, rounded to 2 decimal places
+                                    final downPct = tPrice > 0
+                                        ? ((baseDown / tPrice) * 100)
+                                        : 0.0;
                                     final procFee = 20000 * qty;
-                                    final procFeePerMonth = procFee ~/ dur;
-                                    // Advance = base down + optional reg fee (proc fee NOT included)
+                                    // Registration only if checkbox is on and not a zero-reg bike
+                                    final regFee =
+                                        (!isZeroRegBike && includeRegistration)
+                                        ? 6000 * qty
+                                        : 0;
+                                    // Advance = base down + registration only (no processing fee)
                                     final totalAdvance = baseDown + regFee;
-                                    final financed = tPrice - baseDown;
-                                    final monthly = (financed ~/ dur) + procFeePerMonth;
+                                    // Financed = vehicle price minus base down, plus processing fee
+                                    final financed =
+                                        tPrice - baseDown + procFee;
+                                    final monthly = instDuration! > 0
+                                        ? financed ~/ instDuration!
+                                        : 0;
 
                                     return Column(
                                       children: [
-                                        summaryRow('Vehicle Price', 'PKR $tPrice'),
-                                        summaryRow('Base Down (${instDownPct}%)', 'PKR $baseDown'),
-                                        if (includeRegFee && !isZeroReg)
-                                          summaryRow('Registration Charges', 'PKR $regFee'),
+                                        summaryRow(
+                                          'Vehicle Price',
+                                          'PKR $tPrice',
+                                        ),
+                                        summaryRow(
+                                          'Base Down (${downPct.toStringAsFixed(2)}%)',
+                                          'PKR $baseDown',
+                                        ),
+                                        summaryRow(
+                                          'Processing Fee',
+                                          'PKR $procFee',
+                                        ),
+                                        if (regFee > 0)
+                                          summaryRow(
+                                            'Registration Charges',
+                                            'PKR $regFee',
+                                          ),
                                         const Divider(color: Colors.blueGrey),
-                                        summaryRow('Total Advance Payment', 'PKR $totalAdvance', isBold: true),
+                                        summaryRow(
+                                          'Total Advance Payment',
+                                          'PKR $totalAdvance',
+                                          isBold: true,
+                                        ),
                                         const SizedBox(height: 8),
-                                        summaryRow('Financed Amount', 'PKR $financed'),
-                                        summaryRow('Processing Fee (in monthly)', 'PKR $procFeePerMonth/mo'),
+                                        summaryRow(
+                                          'Financed Amount',
+                                          'PKR $financed',
+                                        ),
+                                        const Text(
+                                          '(Vehicle − Base Down + Processing Fee)',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.white38,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
                                         const SizedBox(height: 16),
                                         // Hero Price Tag
                                         Container(
                                           width: double.infinity,
-                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 16,
+                                          ),
                                           decoration: BoxDecoration(
                                             gradient: LinearGradient(
                                               colors: [
-                                                const Color(0xFF00FF88).withOpacity(0.2),
-                                                const Color(0xFF00FF88).withOpacity(0.05),
+                                                const Color(
+                                                  0xFF00FF88,
+                                                ).withOpacity(0.2),
+                                                const Color(
+                                                  0xFF00FF88,
+                                                ).withOpacity(0.05),
                                               ],
                                               begin: Alignment.topLeft,
                                               end: Alignment.bottomRight,
                                             ),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: const Color(0xFF00FF88).withOpacity(0.6)),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(
+                                                0xFF00FF88,
+                                              ).withOpacity(0.6),
+                                            ),
                                           ),
                                           child: Column(
                                             children: [
                                               Text(
                                                 'MONTHLY INSTALLMENTS',
                                                 style: TextStyle(
-                                                  color: const Color(0xFF00FF88).withOpacity(0.9),
+                                                  color: const Color(
+                                                    0xFF00FF88,
+                                                  ).withOpacity(0.9),
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.bold,
                                                   letterSpacing: 2.0,
@@ -1808,6 +1952,7 @@ Terms & Conditions
                     if (!formKey.currentState!.validate()) return;
 
                     try {
+                      // ── CHANGE 4: pass includeRegistration to _createOrderPublic ──
                       await _createOrderPublic(
                         bike: bike,
                         name: nameCtrl.text.trim(),
@@ -1818,13 +1963,21 @@ Terms & Conditions
                         address: addressCtrl.text.trim(),
                         quantity: qty,
                         instDuration: instDuration,
-                        instDownPct: instDownPct,
-                        includeRegFee: includeRegFee,
+                        downPaymentAmount: instDuration != null
+                            ? (int.tryParse(
+                                    downPaymentAmountCtrl.text.replaceAll(
+                                      RegExp(r'[^0-9]'),
+                                      '',
+                                    ),
+                                  ) ??
+                                  0)
+                            : null,
+                        includeRegistration: includeRegistration,
                       );
 
                       if (context.mounted) {
-                        Navigator.pop(context); // close form
-                        _showBookingReceivedDialog(context); // success bubble
+                        Navigator.pop(context);
+                        _showBookingReceivedDialog(context);
                       }
                     } catch (e) {
                       if (context.mounted) {
@@ -1844,6 +1997,7 @@ Terms & Conditions
   }
 
   /// Writes the order to Firestore WITHOUT requiring auth
+  // ── CHANGE 5: updated signature + recalculated installment fields ──
   Future<String> _createOrderPublic({
     required Bike bike,
     required String name,
@@ -1854,40 +2008,51 @@ Terms & Conditions
     required String address,
     required int quantity,
     int? instDuration,
-    int? instDownPct,
-    bool includeRegFee = false,
+    int? downPaymentAmount, // manual amount; replaces instDownPct
+    bool includeRegistration = false, // NEW parameter
   }) async {
     final priceStr = bike.price.replaceAll(RegExp(r'[^0-9]'), '');
     final basePrice = int.tryParse(priceStr) ?? 0;
     final tPrice = basePrice * quantity;
-    final isInstallment = instDuration != null && instDownPct != null;
+    final isInstallment = instDuration != null && downPaymentAmount != null;
 
     int totalAmount = tPrice;
-    int downPayment = tPrice;
+    int downPayment = tPrice; // for cash: full price = advance
     int monthlyAmount = 0;
     int remaining = 0;
-    
+
     int processingFee = 0;
     int registrationFee = 0;
+    double downPaymentPct = 0.0; // calculated from manual amount
 
     if (isInstallment) {
-      final dur = instDuration!;
-      final downPct = instDownPct!;
-      final isZeroReg = bike.name.toLowerCase().contains('flipper') || bike.name.toLowerCase().contains('mito plus');
-      // Registration fee: optional and model-dependent
-      registrationFee = (includeRegFee && !isZeroReg) ? (6000 * quantity) : 0;
-      // Processing fee: spread into monthly installments
-      processingFee = 20000 * quantity;
-      final procFeePerMonth = processingFee ~/ dur;
+      // Zero-reg bikes always have 0 registration regardless of checkbox
+      final isZeroReg =
+          bike.name.toLowerCase().contains('flipper') ||
+          bike.name.toLowerCase().contains('mito plus');
 
-      final baseDown = tPrice * downPct ~/ 100;
-      // Advance = base down + optional reg fee (proc fee NOT included)
+      processingFee = 20000 * quantity;
+      // ── Registration is optional and excluded from zero-reg bikes ──
+      registrationFee = (!isZeroReg && includeRegistration)
+          ? 6000 * quantity
+          : 0;
+
+      final baseDown =
+          downPaymentAmount!; // the manually entered amount IS the base down
+
+      // Calculated percentage for Firestore storage
+      downPaymentPct = tPrice > 0 ? (baseDown / tPrice) * 100 : 0.0;
+
+      // ── Advance = base down + registration only (processing fee goes into installments) ──
       downPayment = baseDown + registrationFee;
 
-      remaining = tPrice - baseDown; // Financed amount
-      // Monthly = financed share + processing fee share
-      monthlyAmount = (remaining ~/ dur) + procFeePerMonth;
+      // ── Financed amount = vehicle price − base down + processing fee ──
+      remaining = tPrice - baseDown + processingFee;
 
+      // ── Monthly = financed / duration ──
+      monthlyAmount = instDuration! > 0 ? remaining ~/ instDuration! : 0;
+
+      // ── Total amount = vehicle price + processing fee + registration ──
       totalAmount = tPrice + processingFee + registrationFee;
     }
 
@@ -1897,10 +2062,11 @@ Terms & Conditions
     if (isInstallment) {
       installmentPlan = {
         'totalInstallments': instDuration,
-        'downPaymentPct': instDownPct,
+        'downPaymentPct': downPaymentPct, // calculated from manual entry
         'downPaymentAmount': downPayment,
         'processingFee': processingFee,
         'registrationFee': registrationFee,
+        'includeRegistration': includeRegistration, // NEW field
         'monthlyAmount': monthlyAmount,
         'totalAmount': totalAmount,
         'financedAmount': remaining,
@@ -1924,16 +2090,22 @@ Terms & Conditions
       'status': 'new',
       'createdAt': FieldValue.serverTimestamp(),
       'source': 'web',
-      
+
       'isInstallment': isInstallment,
       'totalAmount': totalAmount,
       'downPayment': downPayment,
-      'paidAmount': downPayment,
-      'remainingAmount': remaining,
+      'paidAmount': downPayment, // initial paid = advance (base down + reg)
+      'remainingAmount': remaining, // financed amount
       'totalInstallments': isInstallment ? instDuration : 0,
       'paymentHistory': paymentHistory,
       'paymentStatus': isInstallment ? 'pending' : 'paid',
-      
+
+      // ── NEW fields saved at top level for easy admin panel display ──
+      if (isInstallment) 'processingFee': processingFee,
+      if (isInstallment) 'registrationFee': registrationFee,
+      if (isInstallment) 'includeRegistration': includeRegistration,
+      if (isInstallment) 'monthlyAmount': monthlyAmount,
+
       if (isInstallment) 'installmentPlan': installmentPlan,
     });
     return doc.id;
@@ -2913,7 +3085,7 @@ Terms & Conditions
                 );
 
                 final newPaid = currentPaid + paymentAmount;
-                final newRemaining = total - newPaid;
+                final newRemaining = remaining - paymentAmount;
 
                 // Determine if this is down payment or installment
                 final isDownPayment = downPayment == 0;
@@ -3797,121 +3969,6 @@ Terms & Conditions
                                                       .toString(),
                                                 ),
                                               ),
-                                            if ((inv?['text'] ?? '')
-                                                .toString()
-                                                .trim()
-                                                .isNotEmpty)
-                                              ElevatedButton.icon(
-                                                icon: const Icon(
-                                                  Icons.delete_outline_rounded,
-                                                  size: 16,
-                                                ),
-                                                label: const Text(
-                                                  'Delete',
-                                                  style: TextStyle(fontSize: 12),
-                                                ),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      Colors.red.withOpacity(0.7),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4,
-                                                      ),
-                                                  minimumSize: Size.zero,
-                                                ),
-                                                onPressed: () async {
-                                                  final confirm =
-                                                      await showDialog<bool>(
-                                                    context: context,
-                                                    barrierColor: Colors.black
-                                                        .withOpacity(0.55),
-                                                    builder: (ctx) =>
-                                                        _GlassDialog(
-                                                          title: Row(
-                                                            children: const [
-                                                              Icon(
-                                                                Icons
-                                                                    .delete_forever_rounded,
-                                                                size: 18,
-                                                              ),
-                                                              SizedBox(width: 8),
-                                                              Flexible(
-                                                                child: Text(
-                                                                  'Delete Invoice?',
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          content: Text(
-                                                            'This will permanently remove the invoice for ${(inv?['number'] ?? '').toString()}.',
-                                                            style: TextStyle(
-                                                              color: Colors
-                                                                  .white
-                                                                  .withOpacity(
-                                                                0.9,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          actions: [
-                                                            _GhostButton(
-                                                              text: 'Cancel',
-                                                              onTap: () =>
-                                                                  Navigator.pop(
-                                                                    ctx,
-                                                                    false,
-                                                                  ),
-                                                            ),
-                                                            _DangerButton(
-                                                              text: 'Delete',
-                                                              onTap: () =>
-                                                                  Navigator.pop(
-                                                                    ctx,
-                                                                    true,
-                                                                  ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                  );
-
-                                                  if (confirm == true) {
-                                                    try {
-                                                      await _ordersCol
-                                                          .doc(m['id']
-                                                              as String)
-                                                          .update({
-                                                            'invoice':
-                                                                FieldValue
-                                                                    .delete(),
-                                                          });
-
-                                                      if (context.mounted) {
-                                                        ScaffoldMessenger.of(
-                                                          context,
-                                                        ).showSnackBar(
-                                                          const SnackBar(
-                                                            content: Text(
-                                                              'Invoice deleted.',
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }
-                                                    } catch (e) {
-                                                      if (context.mounted) {
-                                                        ScaffoldMessenger.of(
-                                                          context,
-                                                        ).showSnackBar(
-                                                          SnackBar(
-                                                            content: Text(
-                                                              'Delete failed: $e',
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }
-                                                    }
-                                                  }
-                                                },
-                                              ),
                                             if ((ch?['text'] ?? '')
                                                 .toString()
                                                 .trim()
@@ -3930,121 +3987,6 @@ Terms & Conditions
                                                   text: (ch?['text'] ?? '')
                                                       .toString(),
                                                 ),
-                                              ),
-                                            if ((ch?['text'] ?? '')
-                                                .toString()
-                                                .trim()
-                                                .isNotEmpty)
-                                              ElevatedButton.icon(
-                                                icon: const Icon(
-                                                  Icons.delete_outline_rounded,
-                                                  size: 16,
-                                                ),
-                                                label: const Text(
-                                                  'Delete',
-                                                  style: TextStyle(fontSize: 12),
-                                                ),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      Colors.red.withOpacity(0.7),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4,
-                                                      ),
-                                                  minimumSize: Size.zero,
-                                                ),
-                                                onPressed: () async {
-                                                  final confirm =
-                                                      await showDialog<bool>(
-                                                    context: context,
-                                                    barrierColor: Colors.black
-                                                        .withOpacity(0.55),
-                                                    builder: (ctx) =>
-                                                        _GlassDialog(
-                                                          title: Row(
-                                                            children: const [
-                                                              Icon(
-                                                                Icons
-                                                                    .delete_forever_rounded,
-                                                                size: 18,
-                                                              ),
-                                                              SizedBox(width: 8),
-                                                              Flexible(
-                                                                child: Text(
-                                                                  'Delete Chalan?',
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          content: Text(
-                                                            'This will permanently remove the delivery chalan for ${(ch?['number'] ?? '').toString()}.',
-                                                            style: TextStyle(
-                                                              color: Colors
-                                                                  .white
-                                                                  .withOpacity(
-                                                                0.9,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          actions: [
-                                                            _GhostButton(
-                                                              text: 'Cancel',
-                                                              onTap: () =>
-                                                                  Navigator.pop(
-                                                                    ctx,
-                                                                    false,
-                                                                  ),
-                                                            ),
-                                                            _DangerButton(
-                                                              text: 'Delete',
-                                                              onTap: () =>
-                                                                  Navigator.pop(
-                                                                    ctx,
-                                                                    true,
-                                                                  ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                  );
-
-                                                  if (confirm == true) {
-                                                    try {
-                                                      await _ordersCol
-                                                          .doc(m['id']
-                                                              as String)
-                                                          .update({
-                                                            'chalan':
-                                                                FieldValue
-                                                                    .delete(),
-                                                          });
-
-                                                      if (context.mounted) {
-                                                        ScaffoldMessenger.of(
-                                                          context,
-                                                        ).showSnackBar(
-                                                          const SnackBar(
-                                                            content: Text(
-                                                              'Delivery Chalan deleted.',
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }
-                                                    } catch (e) {
-                                                      if (context.mounted) {
-                                                        ScaffoldMessenger.of(
-                                                          context,
-                                                        ).showSnackBar(
-                                                          SnackBar(
-                                                            content: Text(
-                                                              'Delete failed: $e',
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }
-                                                    }
-                                                  }
-                                                },
                                               ),
                                           ],
                                         ),
@@ -4435,13 +4377,8 @@ class _InvoiceDialog extends StatelessWidget {
 
   static TableRow _row(String a, String b) => TableRow(
     children: [
-      const Padding(
-        padding: EdgeInsets.all(8.0),
-        child: Text(
-          '', // will be replaced below via LayoutBuilder trick if needed
-        ),
-      ),
-      const Padding(padding: EdgeInsets.all(8.0), child: Text('')),
+      Padding(padding: const EdgeInsets.all(8.0), child: Text(a)),
+      Padding(padding: const EdgeInsets.all(8.0), child: Text(b)),
     ],
   );
 
@@ -4478,11 +4415,19 @@ class _SigBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: const [
-        SizedBox(height: 24),
-        SizedBox(width: 140, height: 1, child: ColoredBox(color: Colors.black)),
-        SizedBox(height: 4),
-        // Use label via parent Text
+      children: [
+        const SizedBox(height: 24),
+        const SizedBox(
+          width: 140,
+          height: 1,
+          child: ColoredBox(color: Colors.black),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.black, fontSize: 10),
+        ),
       ],
     );
   }
