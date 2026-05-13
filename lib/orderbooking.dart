@@ -199,7 +199,7 @@ Future<Uint8List> buildInvoicePdfBytes({
                     ],
                   ),
                   row('Model', (orderData['bikeName'] ?? '').toString()),
-                  row('Year', '2025'),
+                  row('Year', '2026'),
                   row('Chassis #', chassis),
                   row('Engine #', engine),
                   row('Color', color),
@@ -461,7 +461,7 @@ Future<Uint8List> buildChalanPdfBytes({
                     ],
                   ),
                   row('Model', (orderData['bikeName'] ?? '').toString()),
-                  row('Year', '2025'),
+                  row('Year', '2026'),
                   row('Chassis #', chassis),
                   row('Engine #', engine),
                   row('Color', color),
@@ -632,7 +632,7 @@ Address: ${order['address']}
 DESCRIPTION               DETAIL
 ------------------------------------------------
 Model                     ${(order['bikeName'] ?? '').toString()}
-Year                      2025
+Year                      2026
 Chassis #                 $chassis
 Engine #                  $engine
 Color                     $color
@@ -672,7 +672,7 @@ Address: ${order['address']}
 DESCRIPTION               DETAIL
 ------------------------------------------------
 Model                     ${(order['bikeName'] ?? '').toString()}
-Year                      2025
+Year                      2026
 Chassis #                 $chassis
 Engine #                  $engine
 Color                     $color
@@ -2671,8 +2671,8 @@ Terms & Conditions
                                   final dateStr =
                                       '${customDate.day.toString().padLeft(2, '0')}-${customDate.month.toString().padLeft(2, '0')}-${(customDate.year % 100).toString().padLeft(2, '0')}';
 
-                                  final invoiceNumber = invoiceNumCtrl.text
-                                      .trim();
+                                  final invoiceSeq = await _nextSeq('invoice');
+                                  final invoiceNumber = _fmtInvoice(invoiceSeq);
 
                                   final text = _composeInvoiceText(
                                     order: orderData
@@ -2767,8 +2767,8 @@ Terms & Conditions
                                   final dateStr =
                                       '${customDate.day.toString().padLeft(2, '0')}-${customDate.month.toString().padLeft(2, '0')}-${(customDate.year % 100).toString().padLeft(2, '0')}';
 
-                                  final chalanNumber = chalanNumCtrl.text
-                                      .trim();
+                                  final chalanSeq = await _nextSeq('chalan');
+                                  final chalanNumber = _fmtChalan(chalanSeq);
 
                                   final text = _composeChalanText(
                                     order: orderData
@@ -4284,7 +4284,7 @@ class _InvoiceDialog extends StatelessWidget {
                               'Model',
                               (orderData['bikeName'] ?? '').toString(),
                             ),
-                            _row('Year', '2025'),
+                            _row('Year', '2026'),
                             _row('Chassis #', chassis),
                             _row('Engine #', engine),
                             _row('Color', color),
@@ -4626,7 +4626,7 @@ class _DeliveryChalanDialog extends StatelessWidget {
                               'Model',
                               (orderData['bikeName'] ?? '').toString(),
                             ),
-                            _row('Year', '2025'),
+                            _row('Year', '2026'),
                             _row('Chassis #', chassis),
                             _row('Engine #', engine),
                             _row('Color', color),
